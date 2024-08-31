@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -49,7 +50,31 @@ func (o *Order) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o *Order) List(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("List all orders")
+	fmt.Println("List all orders:", r.URL.Query())
+	cursorstr := r.URL.Query().Get("cursor")
+	cursor, err := strconv.ParseUint(cursorstr, 10, 64)
+	if err != nil {
+		http.Error(w, fmt.Errorf("failed to parse cursor: %w", err).Error(), http.StatusBadRequest)
+	}
+	fmt.Println("Cursor:", cursor)
+	pageresult, err := o.Repo.FindAll(r.Context(), order.FindAllPage{
+		Size:   50,
+		Offset: cursor,
+	})
+
+	if err != nil {
+		http.Error(w, fmt.Errorf("failed to find all orders: %w", err).Error(), http.StatusInternalServerError)
+		return
+	}
+
+	res, err := json.Marshal(pageresult)
+	if err != nil {
+		http.Error(w, fmt.Errorf("failed to marshal order: %w", err).Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(res)
+	return
 }
 
 func (o *Order) GetByID(w http.ResponseWriter, r *http.Request) {

@@ -25,7 +25,7 @@ func (r *RedisRepo) Insert(ctx context.Context, order model.Order) error {
 		return err
 	}
 	key := orderIDKey(order.OrderID)
-
+	fmt.Println(key)
 	tx := r.Client.TxPipeline()
 
 	res := tx.SetNX(ctx, key, string(data), 0)
@@ -67,8 +67,19 @@ func (r *RedisRepo) FindByID(ctx context.Context, id uint64) (model.Order, error
 
 func (r *RedisRepo) DeleteByID(ctx context.Context, id uint64) error {
 	key := orderIDKey(id)
-	if err := r.Client.Del(ctx, key).Err(); err != nil {
+	tx := r.Client.TxPipeline()
+	if err := tx.Del(ctx, key).Err(); err != nil {
 		return fmt.Errorf("failed to delete order: %w", err)
+	}
+	if err := tx.Del(ctx, key).Err(); err != nil {
+		return fmt.Errorf("failed to delete order: %w", err)
+	}
+	res := tx.SRem(ctx, "orders", key)
+	if err := res.Err(); err != nil {
+		return fmt.Errorf("failed to remove order from set: %w", err)
+	}
+	if _, err := tx.Exec(ctx); err != nil {
+		return fmt.Errorf("failed to execute transaction: %w", err)
 	}
 	return nil
 }
@@ -86,7 +97,6 @@ func (r *RedisRepo) Update(ctx context.Context, id uint64, order model.Order) er
 	} else if err != nil {
 		return fmt.Errorf("failed to update order: %w", err)
 	}
-
 	return nil
 }
 

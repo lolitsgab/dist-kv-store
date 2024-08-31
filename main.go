@@ -1,22 +1,19 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
+	"context"
+	"log"
+	"os"
+	"os/signal"
+
+	"github.com/lolitsgab/dist-kv-store/application"
 )
 
 func main() {
-	server := &http.Server{
-		Addr:    ":3000",
-		Handler: http.HandlerFunc(basicHandler),
+	app := application.New()
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+	if err := app.Start(ctx); err != nil {
+		log.Fatal(err)
 	}
-
-	err := server.ListenAndServe()
-	if err != nil {
-		fmt.Println("Error: ", err)
-	}
-}
-
-func basicHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Hello, world!"))
 }

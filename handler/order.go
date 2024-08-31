@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/lolitsgab/dist-kv-store/application/model"
 	"github.com/lolitsgab/dist-kv-store/repository/order"
@@ -79,6 +80,31 @@ func (o *Order) List(w http.ResponseWriter, r *http.Request) {
 
 func (o *Order) GetByID(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Get an order by ID")
+	paramstr := chi.URLParam(r, "id")
+	if paramstr == "" {
+		http.Error(w, "failed to parse ID", http.StatusInternalServerError)
+		return
+	}
+	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		http.Error(w, "failed to parse ID into integer: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	fmt.Println("Got param ", id)
+	order, err := o.Repo.FindByID(r.Context(), id)
+	if err != nil {
+		http.Error(w, "failed to get order: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	fmt.Println("here")
+	data, err := json.Marshal(order)
+	if err != nil {
+		http.Error(w, "failed to get order: "+err.Error(), http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
+	return
+
 }
 
 func (o *Order) UpdateByID(w http.ResponseWriter, r *http.Request) {
